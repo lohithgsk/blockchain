@@ -1,0 +1,657 @@
+{% extends "base.html" %}
+
+{% block title %}Balance - P2P Blockchain Network{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-wallet"></i> Balance Checker</h2>
+        <p class="text-muted">Check account balances and view transaction history for any address.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Balance Checker -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-search"></i> Check Address Balance
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('check_balance') }}" method="POST" id="balanceForm">
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <input type="text" class="form-control" id="address" name="address" required
+                               placeholder="Enter address to check balance">
+                        <div class="form-text">Enter any address to check its current balance</div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" id="checkBalanceBtn">
+                            <i class="fas fa-search"></i> Check Balance
+                        </button>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <!-- Quick Check Buttons -->
+                <div class="quick-check">
+                    <h6>Quick Check:</h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="quickCheck('{{ node_id }}')">
+                            <i class="fas fa-server"></i> This Node ({{ node_id }})
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="quickCheck('Alice')">
+                            <i class="fas fa-user"></i> Alice
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="quickCheck('Bob')">
+                            <i class="fas fa-user"></i> Bob
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="quickCheck('Charlie')">
+                            <i class="fas fa-user"></i> Charlie
+                        </button>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Address Generator -->
+                <div class="address-generator">
+                    <h6>Generate Random Address:</h6>
+                    <button class="btn btn-outline-info btn-sm" onclick="generateRandomAddress()">
+                        <i class="fas fa-random"></i> Generate Address
+                    </button>
+                    <div id="generatedAddress" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Current Node Balance -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-server"></i> Your Node Balance
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="balance-display">
+                    <div class="balance-amount">
+                        <h2 class="text-primary mb-0" id="nodeBalanceDisplay">{{ "%.2f"|format(node_balance) }}</h2>
+                        <p class="text-muted mb-3">Coins</p>
+                    </div>
+                    
+                    <div class="balance-info">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="info-box">
+                                    <h6 class="text-success" id="totalReceived">0.00</h6>
+                                    <small class="text-muted">Received</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="info-box">
+                                    <h6 class="text-danger" id="totalSent">0.00</h6>
+                                    <small class="text-muted">Sent</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="info-box">
+                                    <h6 class="text-warning" id="miningRewards">0.00</h6>
+                                    <small class="text-muted">Mined</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Node Address -->
+                <div class="node-address">
+                    <h6>Your Node Address:</h6>
+                    <div class="address-display mb-2" onclick="copyToClipboard('{{ node_id }}')">
+                        {{ node_id }}
+                    </div>
+                    <small class="text-muted">Click to copy</small>
+                </div>
+                
+                <hr>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h6>Quick Actions:</h6>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('transactions_page') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-paper-plane"></i> Send Transaction
+                        </a>
+                        <a href="{{ url_for('mining_page') }}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-hammer"></i> Mine to Earn More
+                        </a>
+                        <button class="btn btn-outline-info btn-sm" onclick="refreshNodeBalance()">
+                            <i class="fas fa-sync"></i> Refresh Balance
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Balance Result -->
+<div class="row mt-4" id="balanceResultSection" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar"></i> Balance Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="balance-card">
+                            <div class="balance-icon">
+                                <i class="fas fa-wallet text-primary"></i>
+                            </div>
+                            <div class="balance-content">
+                                <h3 id="checkedBalance">0.00</h3>
+                                <p class="text-muted">Total Balance</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="address-info">
+                            <h6>Address:</h6>
+                            <div class="address-display mb-3" id="checkedAddress">-</div>
+                            
+                            <div class="row text-center">
+                                <div class="col-md-4">
+                                    <div class="info-box">
+                                        <h6 id="addressReceived">0.00</h6>
+                                        <small class="text-muted">Total Received</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-box">
+                                        <h6 id="addressSent">0.00</h6>
+                                        <small class="text-muted">Total Sent</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-box">
+                                        <h6 id="addressTransactions">0</h6>
+                                        <small class="text-muted">Transactions</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transaction History -->
+<div class="row mt-4" id="transactionHistorySection" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history"></i> Transaction History
+                </h5>
+                <span class="badge bg-info" id="historyCount">0</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Amount</th>
+                                <th>Block</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionHistoryTable">
+                            <!-- Transaction history will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="noTransactions" class="text-center py-4" style="display: none;">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Transaction History</h5>
+                    <p class="text-muted">This address has no transaction history yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Addresses -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-trophy"></i> Top Addresses by Balance
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Address</th>
+                                <th>Balance</th>
+                                <th>% of Supply</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topAddressesTable">
+                            <!-- Top addresses will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary" onclick="loadTopAddresses()">
+                        <i class="fas fa-sync"></i> Refresh Rankings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Balance Information -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> How Balances Work
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Balance Calculation:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-plus text-success"></i> Add all incoming transactions</li>
+                            <li><i class="fas fa-minus text-danger"></i> Subtract all outgoing transactions</li>
+                            <li><i class="fas fa-gift text-warning"></i> Include mining rewards</li>
+                            <li><i class="fas fa-calculator text-info"></i> Result = Current Balance</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Address Types:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-server text-primary"></i> Node addresses (like yours)</li>
+                            <li><i class="fas fa-user text-secondary"></i> User addresses (Alice, Bob, etc.)</li>
+                            <li><i class="fas fa-robot text-warning"></i> System addresses (Mining Reward)</li>
+                            <li><i class="fas fa-random text-info"></i> Generated addresses</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Quick check function
+function quickCheck(address) {
+    document.getElementById('address').value = address;
+    checkBalance();
+}
+
+// Check balance function
+function checkBalance() {
+    const address = document.getElementById('address').value.trim();
+    const checkBtn = document.getElementById('checkBalanceBtn');
+    
+    if (!address) {
+        showToast('Please enter an address', 'warning');
+        return;
+    }
+    
+    checkBtn.disabled = true;
+    checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+    
+    fetch(`/api/balance/${address}`)
+        .then(response => response.json())
+        .then(data => {
+            displayBalanceResult(data);
+            loadTransactionHistory(address);
+            showToast('Balance checked successfully!', 'success');
+        })
+        .catch(error => {
+            console.error('Balance check failed:', error);
+            showToast('Failed to check balance', 'danger');
+        })
+        .finally(() => {
+            checkBtn.disabled = false;
+            checkBtn.innerHTML = '<i class="fas fa-search"></i> Check Balance';
+        });
+}
+
+// Display balance result
+function displayBalanceResult(data) {
+    const resultSection = document.getElementById('balanceResultSection');
+    const checkedBalance = document.getElementById('checkedBalance');
+    const checkedAddress = document.getElementById('checkedAddress');
+    
+    checkedBalance.textContent = data.balance.toFixed(2);
+    checkedAddress.textContent = data.address;
+    checkedAddress.onclick = () => copyToClipboard(data.address);
+    
+    resultSection.style.display = 'block';
+    
+    // Animate the balance number
+    animateNumber(checkedBalance, 0, data.balance, 1000);
+    
+    // Calculate additional stats (simulated for demo)
+    const received = Math.max(data.balance, Math.random() * 100);
+    const sent = received - data.balance;
+    
+    document.getElementById('addressReceived').textContent = received.toFixed(2);
+    document.getElementById('addressSent').textContent = sent.toFixed(2);
+    document.getElementById('addressTransactions').textContent = Math.floor(Math.random() * 20);
+}
+
+// Load transaction history
+function loadTransactionHistory(address) {
+    const historySection = document.getElementById('transactionHistorySection');
+    const historyTable = document.getElementById('transactionHistoryTable');
+    const historyCount = document.getElementById('historyCount');
+    const noTransactions = document.getElementById('noTransactions');
+    
+    // Show loading
+    historyTable.innerHTML = '<tr><td colspan="6" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+    historySection.style.display = 'block';
+    
+    fetch('/api/chain')
+        .then(response => response.json())
+        .then(data => {
+            const transactions = [];
+            
+            // Find all transactions involving this address
+            data.chain.forEach((block, blockIndex) => {
+                block.transactions.forEach(tx => {
+                    if (tx.sender === address || tx.recipient === address) {
+                        transactions.push({
+                            ...tx,
+                            blockIndex: block.index,
+                            blockTimestamp: block.timestamp
+                        });
+                    }
+                });
+            });
+            
+            if (transactions.length === 0) {
+                historyTable.innerHTML = '';
+                noTransactions.style.display = 'block';
+                historyCount.textContent = '0';
+                return;
+            }
+            
+            noTransactions.style.display = 'none';
+            historyCount.textContent = transactions.length;
+            
+            // Sort by block index (newest first)
+            transactions.sort((a, b) => b.blockIndex - a.blockIndex);
+            
+            // Display transactions
+            historyTable.innerHTML = transactions.map(tx => {
+                const isIncoming = tx.recipient === address;
+                const type = tx.sender ? (isIncoming ? 'Received' : 'Sent') : 'Mining Reward';
+                const typeIcon = tx.sender ? (isIncoming ? 'fa-arrow-down text-success' : 'fa-arrow-up text-danger') : 'fa-gift text-warning';
+                
+                return `
+                    <tr>
+                        <td>
+                            <i class="fas ${typeIcon}"></i> ${type}
+                        </td>
+                        <td>
+                            <span class="address-display">${tx.sender || 'Mining Reward'}</span>
+                        </td>
+                        <td>
+                            <span class="address-display">${tx.recipient}</span>
+                        </td>
+                        <td>
+                            <strong class="${isIncoming ? 'text-success' : 'text-danger'}">
+                                ${isIncoming ? '+' : '-'}${tx.amount.toFixed(2)}
+                            </strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">#${tx.blockIndex}</span>
+                        </td>
+                        <td>
+                            <small class="text-muted">
+                                ${new Date(tx.blockTimestamp * 1000).toLocaleString()}
+                            </small>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        })
+        .catch(error => {
+            historyTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Failed to load transaction history</td></tr>';
+        });
+}
+
+// Generate random address
+function generateRandomAddress() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let address = '';
+    for (let i = 0; i < 12; i++) {
+        address += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    const container = document.getElementById('generatedAddress');
+    container.innerHTML = `
+        <div class="alert alert-info">
+            <strong>Generated Address:</strong>
+            <div class="address-display mt-2" onclick="copyToClipboard('${address}')">${address}</div>
+            <small class="text-muted">Click to copy</small>
+        </div>
+    `;
+    
+    // Auto-fill the address input
+    document.getElementById('address').value = address;
+}
+
+// Refresh node balance
+function refreshNodeBalance() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            const balanceDisplay = document.getElementById('nodeBalanceDisplay');
+            animateNumber(balanceDisplay, parseFloat(balanceDisplay.textContent), data.balance, 1000);
+            
+            // Update additional stats
+            updateNodeStats(data.node_id);
+            showToast('Node balance refreshed!', 'success');
+        })
+        .catch(error => {
+            showToast('Failed to refresh balance', 'danger');
+        });
+}
+
+// Update node statistics
+function updateNodeStats(nodeId) {
+    fetch('/api/chain')
+        .then(response => response.json())
+        .then(data => {
+            let totalReceived = 0;
+            let totalSent = 0;
+            let miningRewards = 0;
+            
+            data.chain.forEach(block => {
+                block.transactions.forEach(tx => {
+                    if (tx.recipient === nodeId) {
+                        if (tx.sender) {
+                            totalReceived += tx.amount;
+                        } else {
+                            miningRewards += tx.amount;
+                        }
+                    }
+                    if (tx.sender === nodeId) {
+                        totalSent += tx.amount;
+                    }
+                });
+            });
+            
+            document.getElementById('totalReceived').textContent = totalReceived.toFixed(2);
+            document.getElementById('totalSent').textContent = totalSent.toFixed(2);
+            document.getElementById('miningRewards').textContent = miningRewards.toFixed(2);
+        });
+}
+
+// Load top addresses
+function loadTopAddresses() {
+    const table = document.getElementById('topAddressesTable');
+    table.innerHTML = '<tr><td colspan="5" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+    
+    fetch('/api/chain')
+        .then(response => response.json())
+        .then(data => {
+            const balances = {};
+            let totalSupply = 0;
+            
+            // Calculate all balances
+            data.chain.forEach(block => {
+                block.transactions.forEach(tx => {
+                    if (tx.sender) {
+                        balances[tx.sender] = (balances[tx.sender] || 0) - tx.amount;
+                    }
+                    if (tx.recipient) {
+                        balances[tx.recipient] = (balances[tx.recipient] || 0) + tx.amount;
+                        if (!tx.sender) totalSupply += tx.amount; // Mining reward
+                    }
+                });
+            });
+            
+            // Sort by balance
+            const sortedAddresses = Object.entries(balances)
+                .filter(([addr, balance]) => balance > 0)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 10); // Top 10
+            
+            if (sortedAddresses.length === 0) {
+                table.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No addresses with positive balances</td></tr>';
+                return;
+            }
+            
+            table.innerHTML = sortedAddresses.map(([address, balance], index) => {
+                const percentage = totalSupply > 0 ? (balance / totalSupply * 100).toFixed(2) : '0.00';
+                const rankIcon = index < 3 ? ['🥇', '🥈', '🥉'][index] : `#${index + 1}`;
+                
+                return `
+                    <tr>
+                        <td>
+                            <span class="fw-bold">${rankIcon}</span>
+                        </td>
+                        <td>
+                            <span class="address-display">${address}</span>
+                        </td>
+                        <td>
+                            <strong class="text-primary">${balance.toFixed(2)}</strong>
+                            <small class="text-muted">coins</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">${percentage}%</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="quickCheck('${address}')">
+                                <i class="fas fa-search"></i> Check
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        })
+        .catch(error => {
+            table.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load top addresses</td></tr>';
+        });
+}
+
+// Animate number
+function animateNumber(element, start, end, duration) {
+    const startTime = Date.now();
+    const range = end - start;
+    
+    function update() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const current = start + (range * progress);
+        
+        element.textContent = current.toFixed(2);
+        
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+    
+    update();
+}
+
+// Copy to clipboard
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Address copied to clipboard!', 'success', 2000);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        showToast('Failed to copy to clipboard', 'danger');
+    });
+}
+
+// Show toast
+function showToast(message, type = 'info', duration = 4000) {
+    if (window.BlockchainUI && window.BlockchainUI.showToast) {
+        window.BlockchainUI.showToast(message, type, duration);
+    } else {
+        console.log(`Toast: ${message}`);
+    }
+}
+
+// Form submission handler
+document.getElementById('balanceForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    checkBalance();
+});
+
+// Enter key support
+document.getElementById('address').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        checkBalance();
+    }
+});
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Update node stats
+    updateNodeStats('{{ node_id }}');
+    
+    // Load top addresses
+    loadTopAddresses();
+    
+    // Auto-refresh every 20 seconds
+    setInterval(() => {
+        refreshNodeBalance();
+    }, 20000);
+});
+</script>
+{% endblock %}

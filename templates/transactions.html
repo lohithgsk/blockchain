@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - P2P Blockchain Network{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-exchange-alt"></i> Transaction Management</h2>
+        <p class="text-muted">Create new transactions and manage pending transactions in the network.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Create Transaction Form -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-paper-plane"></i> Create New Transaction
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('create_transaction') }}" method="POST" id="transactionForm">
+                    <div class="mb-3">
+                        <label for="sender" class="form-label">Sender Address</label>
+                        <input type="text" class="form-control" id="sender" name="sender" required
+                               placeholder="Enter sender address">
+                        <div class="form-text">The address sending the coins</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="recipient" class="form-label">Recipient Address</label>
+                        <input type="text" class="form-control" id="recipient" name="recipient" required
+                               placeholder="Enter recipient address">
+                        <div class="form-text">The address receiving the coins</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Amount</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="amount" name="amount" 
+                                   step="0.01" min="0.01" required placeholder="0.00">
+                            <span class="input-group-text">Coins</span>
+                        </div>
+                        <div class="form-text">Amount to transfer (must be positive)</div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Send Transaction
+                        </button>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <!-- Quick Fill Buttons -->
+                <div class="row">
+                    <div class="col-12">
+                        <h6>Quick Fill:</h6>
+                        <div class="btn-group-vertical w-100" role="group">
+                            <button type="button" class="btn btn-outline-secondary btn-sm mb-2" 
+                                    onclick="quickFill('Alice', 'Bob', 50)">
+                                Alice → Bob (50 coins)
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm mb-2" 
+                                    onclick="quickFill('Bob', 'Charlie', 25)">
+                                Bob → Charlie (25 coins)
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                    onclick="quickFill('{{ node_id }}', 'TestUser', 10)">
+                                Node → TestUser (10 coins)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Transaction Statistics -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar"></i> Transaction Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="stat-box">
+                            <h4 class="text-primary" id="totalPending">{{ pending_transactions|length }}</h4>
+                            <small class="text-muted">Pending</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-box">
+                            <h4 class="text-success" id="totalConfirmed">0</h4>
+                            <small class="text-muted">Confirmed</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-box">
+                            <h4 class="text-info" id="totalVolume">0.00</h4>
+                            <small class="text-muted">Volume</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Balance Checker -->
+                <div class="balance-checker">
+                    <h6>Quick Balance Check:</h6>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="balanceAddress" 
+                               placeholder="Enter address">
+                        <button class="btn btn-outline-secondary" onclick="checkBalance()" id="checkBalanceBtn">
+                            <i class="fas fa-search"></i> Check
+                        </button>
+                    </div>
+                    <div id="balanceResult" class="alert alert-info d-none">
+                        <i class="fas fa-wallet"></i> <span id="balanceText"></span>
+                    </div>
+                </div>
+                
+                <!-- Recent Addresses -->
+                <div class="recent-addresses">
+                    <h6>Recent Addresses:</h6>
+                    <div class="list-group list-group-flush" id="recentAddresses">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>{{ node_id }}</span>
+                            <small class="text-muted">Your Node</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Transactions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock"></i> Pending Transactions
+                    <span class="badge bg-warning ms-2" id="pendingCount">{{ pending_transactions|length }}</span>
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshPendingTransactions()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                    <a href="{{ url_for('mining_page') }}" class="btn btn-sm btn-success">
+                        <i class="fas fa-hammer"></i> Mine These
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if pending_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Amount</th>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingTransactionsTable">
+                                {% for tx in pending_transactions %}
+                                <tr>
+                                    <td>
+                                        <span class="address-display">
+                                            {{ tx.sender or 'Mining Reward' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="address-display">{{ tx.recipient }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="amount-display text-primary fw-bold">
+                                            {{ "%.2f"|format(tx.amount) }} coins
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ "%.0f"|format(tx.timestamp) }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-clock"></i> Pending
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Pending Transactions</h5>
+                        <p class="text-muted">Create a transaction above to see it appear here.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transaction Pool Info -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Transaction Pool Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>How Transactions Work:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Transactions are created and added to the pending pool</li>
+                            <li><i class="fas fa-check text-success"></i> Miners collect pending transactions to create new blocks</li>
+                            <li><i class="fas fa-check text-success"></i> Once mined, transactions become part of the blockchain</li>
+                            <li><i class="fas fa-check text-success"></i> Confirmed transactions cannot be reversed</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Transaction Validation:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-shield-alt text-info"></i> Amount must be positive</li>
+                            <li><i class="fas fa-shield-alt text-info"></i> Sender must have sufficient balance</li>
+                            <li><i class="fas fa-shield-alt text-info"></i> Sender and recipient must be different</li>
+                            <li><i class="fas fa-shield-alt text-info"></i> All fields are required</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Quick fill function
+function quickFill(sender, recipient, amount) {
+    document.getElementById('sender').value = sender;
+    document.getElementById('recipient').value = recipient;
+    document.getElementById('amount').value = amount;
+}
+
+// Check balance function
+function checkBalance() {
+    const address = document.getElementById('balanceAddress').value;
+    const button = document.getElementById('checkBalanceBtn');
+    const result = document.getElementById('balanceResult');
+    const balanceText = document.getElementById('balanceText');
+    
+    if (!address) {
+        alert('Please enter an address');
+        return;
+    }
+    
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+    
+    fetch(`/api/balance/${address}`)
+        .then(response => response.json())
+        .then(data => {
+            balanceText.textContent = `Balance for ${data.address}: ${data.balance.toFixed(2)} coins`;
+            result.classList.remove('d-none');
+            
+            // Add to recent addresses if not already there
+            addToRecentAddresses(address, data.balance);
+        })
+        .catch(error => {
+            balanceText.textContent = 'Error checking balance';
+            result.classList.remove('d-none');
+            result.classList.add('alert-danger');
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-search"></i> Check';
+        });
+}
+
+// Add address to recent addresses
+function addToRecentAddresses(address, balance) {
+    const recentAddresses = document.getElementById('recentAddresses');
+    
+    // Check if address already exists
+    const existing = Array.from(recentAddresses.children).find(item => 
+        item.querySelector('span').textContent === address
+    );
+    
+    if (!existing) {
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+        item.innerHTML = `
+            <span>${address}</span>
+            <small class="text-muted">${balance.toFixed(2)} coins</small>
+        `;
+        recentAddresses.appendChild(item);
+        
+        // Keep only last 5 addresses
+        if (recentAddresses.children.length > 5) {
+            recentAddresses.removeChild(recentAddresses.lastChild);
+        }
+    }
+}
+
+// Refresh pending transactions
+function refreshPendingTransactions() {
+    fetch('/api/transactions')
+        .then(response => response.json())
+        .then(data => {
+            const table = document.getElementById('pendingTransactionsTable');
+            const count = document.getElementById('pendingCount');
+            const totalPending = document.getElementById('totalPending');
+            
+            // Update counts
+            count.textContent = data.count;
+            totalPending.textContent = data.count;
+            
+            // Clear table
+            table.innerHTML = '';
+            
+            // Add transactions
+            data.pending_transactions.forEach(tx => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><span class="address-display">${tx.sender || 'Mining Reward'}</span></td>
+                    <td><span class="address-display">${tx.recipient}</span></td>
+                    <td><span class="amount-display text-primary fw-bold">${tx.amount.toFixed(2)} coins</span></td>
+                    <td><small class="text-muted">${new Date(tx.timestamp * 1000).toLocaleString()}</small></td>
+                    <td><span class="badge bg-warning"><i class="fas fa-clock"></i> Pending</span></td>
+                `;
+                table.appendChild(row);
+            });
+            
+            // Calculate total volume
+            const totalVolume = data.pending_transactions.reduce((sum, tx) => sum + tx.amount, 0);
+            document.getElementById('totalVolume').textContent = totalVolume.toFixed(2);
+        })
+        .catch(error => console.log('Failed to refresh transactions:', error));
+}
+
+// Update confirmed transactions count
+function updateStats() {
+    fetch('/api/chain')
+        .then(response => response.json())
+        .then(data => {
+            let totalConfirmed = 0;
+            data.chain.forEach(block => {
+                totalConfirmed += block.transactions.length;
+            });
+            document.getElementById('totalConfirmed').textContent = totalConfirmed;
+        })
+        .catch(error => console.log('Failed to update stats:', error));
+}
+
+// Form validation
+document.getElementById('transactionForm').addEventListener('submit', function(e) {
+    const sender = document.getElementById('sender').value;
+    const recipient = document.getElementById('recipient').value;
+    const amount = parseFloat(document.getElementById('amount').value);
+    
+    if (sender === recipient) {
+        e.preventDefault();
+        alert('Sender and recipient cannot be the same!');
+        return;
+    }
+    
+    if (amount <= 0) {
+        e.preventDefault();
+        alert('Amount must be positive!');
+        return;
+    }
+});
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    refreshPendingTransactions();
+    updateStats();
+    
+    // Auto-refresh every 10 seconds
+    setInterval(refreshPendingTransactions, 10000);
+    setInterval(updateStats, 15000);
+});
+
+// Enter key support for balance check
+document.getElementById('balanceAddress').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        checkBalance();
+    }
+});
+</script>
+{% endblock %}

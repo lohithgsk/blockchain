@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+
+{% block title %}Mining - P2P Blockchain Network{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-hammer"></i> Mining Center</h2>
+        <p class="text-muted">Mine new blocks and earn rewards by processing pending transactions.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Mining Control Panel -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cog"></i> Mining Control Panel
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Mining Status -->
+                <div id="miningStatus" class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Ready to mine
+                </div>
+                
+                <!-- Mining Progress -->
+                <div id="miningProgress" class="mb-3" style="display: none;">
+                    <h6>Mining in Progress...</h6>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" 
+                             role="progressbar" style="width: 0%" id="progressBar">
+                            <span id="progressText">0%</span>
+                        </div>
+                    </div>
+                    <small class="text-muted">Searching for valid nonce...</small>
+                </div>
+                
+                <!-- Mining Form -->
+                <form action="{{ url_for('mine_block') }}" method="POST" id="miningForm">
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-success btn-lg" id="mineButton" 
+                                {% if pending_count == 0 %}disabled{% endif %}>
+                            <i class="fas fa-hammer"></i> Mine New Block
+                        </button>
+                    </div>
+                </form>
+                
+                {% if pending_count == 0 %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    No pending transactions to mine. 
+                    <a href="{{ url_for('transactions_page') }}" class="alert-link">Create some transactions</a> first.
+                </div>
+                {% endif %}
+                
+                <hr>
+                
+                <!-- Mining Info -->
+                <div class="mining-info">
+                    <h6>Mining Parameters:</h6>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="info-box">
+                                <h5 class="text-primary">{{ difficulty }}</h5>
+                                <small class="text-muted">Difficulty</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="info-box">
+                                <h5 class="text-success">{{ mining_reward }}</h5>
+                                <small class="text-muted">Reward</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="info-box">
+                                <h5 class="text-warning" id="pendingTxCount">{{ pending_count }}</h5>
+                                <small class="text-muted">Pending TXs</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h6>Quick Actions:</h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="simulateMining()">
+                            <i class="fas fa-play"></i> Simulate Mining (Demo)
+                        </button>
+                        <a href="{{ url_for('transactions_page') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-plus"></i> Add More Transactions
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mining Statistics -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar"></i> Mining Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col-6">
+                        <div class="stat-box">
+                            <h4 class="text-success" id="blocksMinedCount">0</h4>
+                            <small class="text-muted">Blocks Mined</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-box">
+                            <h4 class="text-info" id="totalEarned">0.00</h4>
+                            <small class="text-muted">Total Earned</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Mining History -->
+                <div class="mining-history">
+                    <h6>Recent Mining Activity:</h6>
+                    <div class="list-group list-group-flush" id="miningHistory">
+                        <div class="list-group-item text-center text-muted py-4">
+                            <i class="fas fa-hammer fa-2x mb-2"></i>
+                            <div>No mining activity yet</div>
+                            <small>Start mining to see your activity here</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Hash Rate Simulator -->
+                <div class="hash-rate-simulator">
+                    <h6>Estimated Hash Rate:</h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="hash-rate-display" id="hashRate">0 H/s</span>
+                        <button class="btn btn-sm btn-outline-info" onclick="calculateHashRate()">
+                            <i class="fas fa-calculator"></i> Calculate
+                        </button>
+                    </div>
+                    <div class="progress mt-2">
+                        <div class="progress-bar bg-info" role="progressbar" 
+                             style="width: 0%" id="hashRateBar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Transactions to Mine -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list"></i> Transactions Ready for Mining
+                </h5>
+                <span class="badge bg-primary" id="transactionCount">{{ pending_count }}</span>
+            </div>
+            <div class="card-body">
+                {% if pending_count > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Amount</th>
+                                    <th>Fee Estimate</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingTransactionsTable">
+                                <!-- Transactions will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <strong>Total Transactions:</strong>
+                                <div class="text-primary" id="totalTransactions">{{ pending_count }}</div>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Total Volume:</strong>
+                                <div class="text-success" id="totalVolume">0.00 coins</div>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Mining Reward:</strong>
+                                <div class="text-warning">{{ mining_reward }} coins</div>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Est. Total Payout:</strong>
+                                <div class="text-info" id="estimatedPayout">{{ mining_reward }} coins</div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Transactions to Mine</h4>
+                        <p class="text-muted">There are currently no pending transactions in the network.</p>
+                        <a href="{{ url_for('transactions_page') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create Transaction
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mining Information -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> How Mining Works
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-cogs"></i> Proof of Work Process:</h6>
+                        <ol class="list-unstyled ps-3">
+                            <li><i class="fas fa-chevron-right text-primary"></i> Collect pending transactions</li>
+                            <li><i class="fas fa-chevron-right text-primary"></i> Create new block with transactions</li>
+                            <li><i class="fas fa-chevron-right text-primary"></i> Find valid nonce (brute force)</li>
+                            <li><i class="fas fa-chevron-right text-primary"></i> Verify hash meets difficulty target</li>
+                            <li><i class="fas fa-chevron-right text-primary"></i> Add block to blockchain</li>
+                            <li><i class="fas fa-chevron-right text-primary"></i> Receive mining reward</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-shield-alt"></i> Mining Requirements:</h6>
+                        <ul class="list-unstyled ps-3">
+                            <li><i class="fas fa-check text-success"></i> Hash must start with {{ difficulty }} zeros</li>
+                            <li><i class="fas fa-check text-success"></i> All transactions must be valid</li>
+                            <li><i class="fas fa-check text-success"></i> Block must reference previous block</li>
+                            <li><i class="fas fa-check text-success"></i> Nonce must produce valid hash</li>
+                        </ul>
+                        
+                        <div class="mt-3">
+                            <h6><i class="fas fa-coins"></i> Rewards:</h6>
+                            <ul class="list-unstyled ps-3">
+                                <li><i class="fas fa-gift text-warning"></i> Block reward: {{ mining_reward }} coins</li>
+                                <li><i class="fas fa-gift text-warning"></i> Transaction fees: Variable</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let miningInProgress = false;
+let miningTimer = null;
+
+// Mine button handler
+document.getElementById('miningForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    startMining();
+});
+
+// Start mining process
+function startMining() {
+    if (miningInProgress) return;
+    
+    const mineButton = document.getElementById('mineButton');
+    const miningStatus = document.getElementById('miningStatus');
+    const miningProgress = document.getElementById('miningProgress');
+    
+    miningInProgress = true;
+    mineButton.disabled = true;
+    mineButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mining...';
+    
+    miningStatus.className = 'alert alert-warning';
+    miningStatus.innerHTML = '<i class="fas fa-hammer"></i> Mining in progress...';
+    miningProgress.style.display = 'block';
+    
+    // Simulate mining progress
+    let progress = 0;
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    miningTimer = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 100) progress = 100;
+        
+        progressBar.style.width = progress + '%';
+        progressText.textContent = Math.round(progress) + '%';
+        
+        if (progress >= 100) {
+            clearInterval(miningTimer);
+            completeMining();
+        }
+    }, 200);
+    
+    // Actual mining API call
+    fetch('/api/mine', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            completeMining(data);
+        } else {
+            throw new Error(data.error || 'Mining failed');
+        }
+    })
+    .catch(error => {
+        miningFailed(error.message);
+    });
+}
+
+// Complete mining
+function completeMining(data = null) {
+    clearInterval(miningTimer);
+    miningInProgress = false;
+    
+    const mineButton = document.getElementById('mineButton');
+    const miningStatus = document.getElementById('miningStatus');
+    const miningProgress = document.getElementById('miningProgress');
+    
+    mineButton.disabled = false;
+    mineButton.innerHTML = '<i class="fas fa-hammer"></i> Mine New Block';
+    
+    miningStatus.className = 'alert alert-success';
+    miningStatus.innerHTML = '<i class="fas fa-check-circle"></i> Block mined successfully!';
+    
+    miningProgress.style.display = 'none';
+    
+    if (data) {
+        addToMiningHistory(data);
+        updateMiningStats();
+        
+        // Show success details
+        setTimeout(() => {
+            miningStatus.innerHTML = `
+                <i class="fas fa-check-circle"></i> 
+                Block #${data.index} mined! 
+                Nonce: ${data.nonce}, 
+                Mining time: ${data.mining_time}s
+            `;
+        }, 1000);
+    }
+    
+    // Refresh pending transactions
+    loadPendingTransactions();
+    
+    // Reset status after 5 seconds
+    setTimeout(() => {
+        miningStatus.className = 'alert alert-info';
+        miningStatus.innerHTML = '<i class="fas fa-info-circle"></i> Ready to mine';
+    }, 5000);
+}
+
+// Mining failed
+function miningFailed(error) {
+    clearInterval(miningTimer);
+    miningInProgress = false;
+    
+    const mineButton = document.getElementById('mineButton');
+    const miningStatus = document.getElementById('miningStatus');
+    const miningProgress = document.getElementById('miningProgress');
+    
+    mineButton.disabled = false;
+    mineButton.innerHTML = '<i class="fas fa-hammer"></i> Mine New Block';
+    
+    miningStatus.className = 'alert alert-danger';
+    miningStatus.innerHTML = `<i class="fas fa-times-circle"></i> Mining failed: ${error}`;
+    
+    miningProgress.style.display = 'none';
+    
+    // Reset status after 5 seconds
+    setTimeout(() => {
+        miningStatus.className = 'alert alert-info';
+        miningStatus.innerHTML = '<i class="fas fa-info-circle"></i> Ready to mine';
+    }, 5000);
+}
+
+// Add to mining history
+function addToMiningHistory(data) {
+    const miningHistory = document.getElementById('miningHistory');
+    
+    // Clear "no activity" message
+    if (miningHistory.children.length === 1 && miningHistory.children[0].textContent.includes('No mining activity')) {
+        miningHistory.innerHTML = '';
+    }
+    
+    const historyItem = document.createElement('div');
+    historyItem.className = 'list-group-item';
+    historyItem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-1">Block #${data.index}</h6>
+                <p class="mb-1 text-muted">
+                    ${data.transactions.length} transactions, 
+                    Nonce: ${data.nonce}
+                </p>
+                <small class="text-muted">Mining time: ${data.mining_time}s</small>
+            </div>
+            <span class="badge bg-success">+${10} coins</span>
+        </div>
+    `;
+    
+    miningHistory.insertBefore(historyItem, miningHistory.firstChild);
+    
+    // Keep only last 5 items
+    if (miningHistory.children.length > 5) {
+        miningHistory.removeChild(miningHistory.lastChild);
+    }
+}
+
+// Update mining statistics
+function updateMiningStats() {
+    fetch('/api/chain')
+        .then(response => response.json())
+        .then(data => {
+            let blocksMinedByThisNode = 0;
+            let totalEarned = 0;
+            
+            data.chain.forEach(block => {
+                block.transactions.forEach(tx => {
+                    if (tx.sender === null && tx.recipient === '{{ node_id }}') {
+                        blocksMinedByThisNode++;
+                        totalEarned += tx.amount;
+                    }
+                });
+            });
+            
+            document.getElementById('blocksMinedCount').textContent = blocksMinedByThisNode;
+            document.getElementById('totalEarned').textContent = totalEarned.toFixed(2);
+        })
+        .catch(error => console.log('Failed to update mining stats:', error));
+}
+
+// Load pending transactions
+function loadPendingTransactions() {
+    fetch('/api/transactions')
+        .then(response => response.json())
+        .then(data => {
+            const table = document.getElementById('pendingTransactionsTable');
+            const count = document.getElementById('transactionCount');
+            const pendingTxCount = document.getElementById('pendingTxCount');
+            const totalTransactions = document.getElementById('totalTransactions');
+            const totalVolume = document.getElementById('totalVolume');
+            const estimatedPayout = document.getElementById('estimatedPayout');
+            const mineButton = document.getElementById('mineButton');
+            
+            // Update counts
+            count.textContent = data.count;
+            pendingTxCount.textContent = data.count;
+            totalTransactions.textContent = data.count;
+            
+            // Enable/disable mine button
+            mineButton.disabled = data.count === 0 || miningInProgress;
+            
+            // Clear table
+            if (table) {
+                table.innerHTML = '';
+                
+                let volume = 0;
+                data.pending_transactions.forEach(tx => {
+                    volume += tx.amount;
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${tx.sender || 'Mining Reward'}</td>
+                        <td>${tx.recipient}</td>
+                        <td>${tx.amount.toFixed(2)} coins</td>
+                        <td><small class="text-muted">~0.01 coins</small></td>
+                    `;
+                    table.appendChild(row);
+                });
+                
+                // Update volume and payout
+                if (totalVolume) totalVolume.textContent = volume.toFixed(2) + ' coins';
+                if (estimatedPayout) estimatedPayout.textContent = ({{ mining_reward }} + volume * 0.01).toFixed(2) + ' coins';
+            }
+        })
+        .catch(error => console.log('Failed to load pending transactions:', error));
+}
+
+// Simulate mining (demo)
+function simulateMining() {
+    if (miningInProgress) return;
+    
+    const demoData = {
+        index: Math.floor(Math.random() * 1000),
+        transactions: [{sender: 'Demo', recipient: 'User', amount: 10}],
+        nonce: Math.floor(Math.random() * 50000),
+        mining_time: (Math.random() * 5 + 1).toFixed(2)
+    };
+    
+    startMining();
+    
+    setTimeout(() => {
+        completeMining(demoData);
+    }, 3000);
+}
+
+// Calculate hash rate
+function calculateHashRate() {
+    const hashRateDisplay = document.getElementById('hashRate');
+    const hashRateBar = document.getElementById('hashRateBar');
+    
+    // Simulate hash rate calculation
+    const baseRate = Math.floor(Math.random() * 1000) + 100;
+    const rate = baseRate + 'H/s';
+    
+    hashRateDisplay.textContent = rate;
+    
+    const percentage = Math.min((baseRate / 1000) * 100, 100);
+    hashRateBar.style.width = percentage + '%';
+    
+    // Animate the bar
+    hashRateBar.classList.add('progress-bar-animated');
+    setTimeout(() => {
+        hashRateBar.classList.remove('progress-bar-animated');
+    }, 2000);
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadPendingTransactions();
+    updateMiningStats();
+    calculateHashRate();
+    
+    // Auto-refresh every 10 seconds
+    setInterval(loadPendingTransactions, 10000);
+    setInterval(updateMiningStats, 15000);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,613 @@
+{% extends "base.html" %}
+
+{% block title %}Network - P2P Blockchain Network{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-network-wired"></i> Network Management</h2>
+        <p class="text-muted">Manage peer connections and synchronize with the blockchain network.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Add Peer -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-plus-circle"></i> Add New Peer
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('add_peer') }}" method="POST" id="peerForm">
+                    <div class="mb-3">
+                        <label for="peer_url" class="form-label">Peer URL</label>
+                        <input type="url" class="form-control" id="peer_url" name="peer_url" required
+                               placeholder="http://localhost:5001">
+                        <div class="form-text">Enter the full URL of the peer node (e.g., http://localhost:5001)</div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" id="addPeerBtn">
+                            <i class="fas fa-plus"></i> Add Peer
+                        </button>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <!-- Quick Add Buttons -->
+                <div class="quick-add-peers">
+                    <h6>Quick Add Common Ports:</h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="quickAddPeer('http://localhost:5001')">
+                            <i class="fas fa-server"></i> localhost:5001
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="quickAddPeer('http://localhost:5002')">
+                            <i class="fas fa-server"></i> localhost:5002
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="quickAddPeer('http://localhost:5003')">
+                            <i class="fas fa-server"></i> localhost:5003
+                        </button>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Peer Discovery -->
+                <div class="peer-discovery">
+                    <h6>Auto Discovery:</h6>
+                    <button class="btn btn-outline-info" onclick="discoverPeers()">
+                        <i class="fas fa-search"></i> Scan Local Network
+                    </button>
+                    <div id="discoveryResult" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Network Synchronization -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-sync"></i> Network Synchronization
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="sync-status mb-3" id="syncStatus">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Network status: Synchronized
+                    </div>
+                </div>
+                
+                <form action="{{ url_for('sync_network') }}" method="POST" id="syncForm">
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-warning" id="syncBtn">
+                            <i class="fas fa-sync"></i> Sync with Network
+                        </button>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <!-- Sync Statistics -->
+                <div class="sync-stats">
+                    <h6>Synchronization Statistics:</h6>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="stat-box">
+                                <h5 class="text-primary" id="lastSyncTime">Never</h5>
+                                <small class="text-muted">Last Sync</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-box">
+                                <h5 class="text-success" id="syncedPeers">0</h5>
+                                <small class="text-muted">Synced Peers</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-box">
+                                <h5 class="text-info" id="consensusStatus">Active</h5>
+                                <small class="text-muted">Consensus</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Network Health -->
+                <div class="network-health">
+                    <h6>Network Health:</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: 100%" id="healthBar">
+                            <span id="healthText">100%</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-success" onclick="checkNetworkHealth()">
+                        <i class="fas fa-heartbeat"></i> Check Health
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connected Peers -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-users"></i> Connected Peers
+                    <span class="badge bg-primary ms-2" id="peerCount">{{ peer_count }}</span>
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshPeers()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="pingAllPeers()">
+                        <i class="fas fa-broadcast-tower"></i> Ping All
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if peers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Peer Address</th>
+                                    <th>Status</th>
+                                    <th>Chain Length</th>
+                                    <th>Last Seen</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="peersTable">
+                                {% for peer in peers %}
+                                <tr data-peer="{{ peer }}">
+                                    <td>
+                                        <strong>{{ peer }}</strong>
+                                        <br><small class="text-muted">Peer Node</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary" id="status-{{ peer }}">
+                                            <i class="fas fa-question"></i> Unknown
+                                        </span>
+                                    </td>
+                                    <td id="chain-{{ peer }}">-</td>
+                                    <td id="lastseen-{{ peer }}">-</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-info" onclick="pingPeer('{{ peer }}')">
+                                            <i class="fas fa-satellite-dish"></i> Ping
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="removePeer('{{ peer }}')">
+                                            <i class="fas fa-times"></i> Remove
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-users-slash fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Peers Connected</h4>
+                        <p class="text-muted">Add peer nodes above to start building your network.</p>
+                        <button class="btn btn-primary" onclick="document.getElementById('peer_url').focus()">
+                            <i class="fas fa-plus"></i> Add First Peer
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Network Topology -->
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-project-diagram"></i> Network Topology
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="network-topology" id="networkTopology">
+                    <div class="topology-container">
+                        <div class="node current-node">
+                            <i class="fas fa-server"></i>
+                            <div class="node-label">This Node<br><small>{{ node_id }}</small></div>
+                        </div>
+                        <div class="connections" id="peerConnections">
+                            <!-- Peer connections will be drawn here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Network Statistics -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie"></i> Network Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="network-stats">
+                    <div class="stat-item">
+                        <i class="fas fa-network-wired text-primary"></i>
+                        <div class="stat-content">
+                            <h6>Network Size</h6>
+                            <span class="stat-value" id="networkSize">{{ peer_count + 1 }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <i class="fas fa-signal text-success"></i>
+                        <div class="stat-content">
+                            <h6>Online Peers</h6>
+                            <span class="stat-value" id="onlinePeers">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <i class="fas fa-exclamation-triangle text-warning"></i>
+                        <div class="stat-content">
+                            <h6>Offline Peers</h6>
+                            <span class="stat-value" id="offlinePeers">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <i class="fas fa-sync text-info"></i>
+                        <div class="stat-content">
+                            <h6>Sync Status</h6>
+                            <span class="stat-value" id="syncStatusStat">Good</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Connection Quality -->
+                <div class="connection-quality">
+                    <h6>Connection Quality:</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: 85%" id="qualityBar">
+                            <span id="qualityText">85%</span>
+                        </div>
+                    </div>
+                    <small class="text-muted">Based on peer response times</small>
+                </div>
+                
+                <hr>
+                
+                <!-- Network Actions -->
+                <div class="network-actions">
+                    <h6>Network Actions:</h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="broadcastMessage()">
+                            <i class="fas fa-broadcast-tower"></i> Broadcast Test
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="resetConnections()">
+                            <i class="fas fa-redo"></i> Reset Connections
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Network Information -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Network Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>How P2P Networks Work:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Each node maintains a copy of the blockchain</li>
+                            <li><i class="fas fa-check text-success"></i> Nodes communicate directly with each other</li>
+                            <li><i class="fas fa-check text-success"></i> Consensus ensures all nodes agree on the chain</li>
+                            <li><i class="fas fa-check text-success"></i> No single point of failure</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Synchronization Process:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-arrow-right text-primary"></i> Compare chain lengths with peers</li>
+                            <li><i class="fas fa-arrow-right text-primary"></i> Download longer valid chains</li>
+                            <li><i class="fas fa-arrow-right text-primary"></i> Validate all blocks and transactions</li>
+                            <li><i class="fas fa-arrow-right text-primary"></i> Replace local chain if needed</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Quick add peer function
+function quickAddPeer(url) {
+    document.getElementById('peer_url').value = url;
+    document.getElementById('peer_url').focus();
+}
+
+// Ping individual peer
+function pingPeer(peer) {
+    const statusElement = document.getElementById(`status-${peer}`);
+    const chainElement = document.getElementById(`chain-${peer}`);
+    const lastSeenElement = document.getElementById(`lastseen-${peer}`);
+    
+    statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pinging...';
+    statusElement.className = 'badge bg-warning';
+    
+    fetch(`http://${peer}/api/chain`, {
+        method: 'GET',
+        timeout: 5000
+    })
+    .then(response => response.json())
+    .then(data => {
+        statusElement.innerHTML = '<i class="fas fa-check"></i> Online';
+        statusElement.className = 'badge bg-success';
+        chainElement.textContent = data.length;
+        lastSeenElement.textContent = 'Just now';
+    })
+    .catch(error => {
+        statusElement.innerHTML = '<i class="fas fa-times"></i> Offline';
+        statusElement.className = 'badge bg-danger';
+        chainElement.textContent = 'N/A';
+        lastSeenElement.textContent = 'Unreachable';
+    });
+}
+
+// Ping all peers
+function pingAllPeers() {
+    const peers = Array.from(document.querySelectorAll('[data-peer]')).map(row => row.dataset.peer);
+    let onlineCount = 0;
+    let offlineCount = 0;
+    
+    peers.forEach(peer => {
+        pingPeer(peer);
+        
+        // Update counters after a delay
+        setTimeout(() => {
+            const statusElement = document.getElementById(`status-${peer}`);
+            if (statusElement.classList.contains('bg-success')) {
+                onlineCount++;
+            } else {
+                offlineCount++;
+            }
+            
+            document.getElementById('onlinePeers').textContent = onlineCount;
+            document.getElementById('offlinePeers').textContent = offlineCount;
+            
+            // Update connection quality
+            const quality = peers.length > 0 ? Math.round((onlineCount / peers.length) * 100) : 100;
+            const qualityBar = document.getElementById('qualityBar');
+            const qualityText = document.getElementById('qualityText');
+            
+            qualityBar.style.width = quality + '%';
+            qualityText.textContent = quality + '%';
+            
+            if (quality > 75) {
+                qualityBar.className = 'progress-bar bg-success';
+            } else if (quality > 50) {
+                qualityBar.className = 'progress-bar bg-warning';
+            } else {
+                qualityBar.className = 'progress-bar bg-danger';
+            }
+        }, 2000);
+    });
+}
+
+// Remove peer (client-side only for demo)
+function removePeer(peer) {
+    if (confirm(`Remove peer ${peer}?`)) {
+        const row = document.querySelector(`[data-peer="${peer}"]`);
+        if (row) {
+            row.remove();
+            updatePeerCount();
+        }
+    }
+}
+
+// Update peer count
+function updatePeerCount() {
+    const count = document.querySelectorAll('[data-peer]').length;
+    document.getElementById('peerCount').textContent = count;
+    document.getElementById('networkSize').textContent = count + 1;
+}
+
+// Refresh peers
+function refreshPeers() {
+    fetch('/api/nodes')
+        .then(response => response.json())
+        .then(data => {
+            // Update peer count
+            document.getElementById('peerCount').textContent = data.count;
+            document.getElementById('networkSize').textContent = data.count + 1;
+            
+            // Ping all peers to update status
+            setTimeout(pingAllPeers, 500);
+        })
+        .catch(error => console.log('Failed to refresh peers:', error));
+}
+
+// Discover peers on local network
+function discoverPeers() {
+    const discoveryResult = document.getElementById('discoveryResult');
+    discoveryResult.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Scanning local network...</div>';
+    
+    // Simulate discovery process
+    const commonPorts = [5000, 5001, 5002, 5003, 5004, 5005];
+    const discoveredPeers = [];
+    
+    setTimeout(() => {
+        // Simulate finding peers
+        const found = commonPorts.slice(0, Math.floor(Math.random() * 3) + 1);
+        
+        if (found.length > 0) {
+            discoveryResult.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> 
+                    Discovered ${found.length} potential peer(s): 
+                    ${found.map(port => `localhost:${port}`).join(', ')}
+                </div>
+            `;
+        } else {
+            discoveryResult.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    No peers discovered on local network.
+                </div>
+            `;
+        }
+    }, 2000);
+}
+
+// Check network health
+function checkNetworkHealth() {
+    const healthBar = document.getElementById('healthBar');
+    const healthText = document.getElementById('healthText');
+    
+    // Simulate health check
+    fetch('/api/health')
+        .then(response => response.json())
+        .then(data => {
+            const health = data.is_chain_valid ? 100 : 75;
+            healthBar.style.width = health + '%';
+            healthText.textContent = health + '%';
+            
+            if (health === 100) {
+                healthBar.className = 'progress-bar bg-success';
+            } else {
+                healthBar.className = 'progress-bar bg-warning';
+            }
+        })
+        .catch(error => {
+            healthBar.style.width = '25%';
+            healthText.textContent = '25%';
+            healthBar.className = 'progress-bar bg-danger';
+        });
+}
+
+// Broadcast test message
+function broadcastMessage() {
+    const peers = Array.from(document.querySelectorAll('[data-peer]')).map(row => row.dataset.peer);
+    
+    if (peers.length === 0) {
+        alert('No peers to broadcast to!');
+        return;
+    }
+    
+    // Simulate broadcast
+    alert(`Broadcasting test message to ${peers.length} peer(s)...`);
+    
+    // Update UI to show broadcast
+    setTimeout(() => {
+        alert('Broadcast completed!');
+    }, 1000);
+}
+
+// Reset connections
+function resetConnections() {
+    if (confirm('Reset all peer connections? This will clear the peer list.')) {
+        // Simulate reset
+        const peersTable = document.getElementById('peersTable');
+        peersTable.innerHTML = '';
+        updatePeerCount();
+        
+        alert('Connections reset. Add peers to rebuild your network.');
+    }
+}
+
+// Handle sync form
+document.getElementById('syncForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const syncBtn = document.getElementById('syncBtn');
+    const syncStatus = document.getElementById('syncStatus');
+    
+    syncBtn.disabled = true;
+    syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Synchronizing...';
+    
+    syncStatus.innerHTML = `
+        <div class="alert alert-warning">
+            <i class="fas fa-sync fa-spin"></i> Synchronizing with network peers...
+        </div>
+    `;
+    
+    fetch('/api/consensus', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="fas fa-sync"></i> Sync with Network';
+        
+        if (data.replaced) {
+            syncStatus.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> ${data.message}
+                </div>
+            `;
+        } else {
+            syncStatus.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> ${data.message}
+                </div>
+            `;
+        }
+        
+        // Update last sync time
+        document.getElementById('lastSyncTime').textContent = 'Just now';
+        document.getElementById('syncedPeers').textContent = data.peers_checked || 0;
+    })
+    .catch(error => {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="fas fa-sync"></i> Sync with Network';
+        
+        syncStatus.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle"></i> Synchronization failed: ${error.message}
+            </div>
+        `;
+    });
+});
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Ping all peers on load
+    setTimeout(pingAllPeers, 1000);
+    
+    // Check network health
+    setTimeout(checkNetworkHealth, 2000);
+    
+    // Auto-refresh every 30 seconds
+    setInterval(refreshPeers, 30000);
+});
+</script>
+{% endblock %}

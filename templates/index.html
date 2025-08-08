@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - P2P Blockchain Network{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="hero-section text-center">
+            <h1 class="display-4 mb-3">
+                <i class="fas fa-link text-primary"></i> 
+                Blockchain Network Dashboard
+            </h1>
+            <p class="lead">
+                Welcome to your P2P Blockchain Network Node. 
+                Monitor, transact, and participate in the decentralized network.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-primary">
+                <i class="fas fa-cubes"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="chainLength">{{ chain_length }}</h3>
+                <p class="stat-label">Blocks in Chain</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-warning">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="pendingTx">{{ pending_count }}</h3>
+                <p class="stat-label">Pending Transactions</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-success">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="peerCount">{{ peer_count }}</h3>
+                <p class="stat-label">Connected Peers</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-info">
+                <i class="fas fa-coins"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="nodeBalance">{{ "%.2f"|format(balance) }}</h3>
+                <p class="stat-label">Node Balance</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('transactions_page') }}" class="btn btn-primary btn-block">
+                            <i class="fas fa-paper-plane"></i> Send Transaction
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('mining_page') }}" class="btn btn-success btn-block">
+                            <i class="fas fa-hammer"></i> Mine Block
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('network_page') }}" class="btn btn-info btn-block">
+                            <i class="fas fa-network-wired"></i> Manage Network
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('explorer_page') }}" class="btn btn-warning btn-block">
+                            <i class="fas fa-search"></i> Explore Chain
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Network Status -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-signal"></i> Network Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="network-status">
+                    <div class="status-item">
+                        <span class="status-indicator online"></span>
+                        <span>Node Online</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator" id="chainStatus">synced</span>
+                        <span>Chain Synchronized</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator mining"></span>
+                        <span>Mining Ready</span>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row text-center">
+                    <div class="col-4">
+                        <small class="text-muted">Difficulty</small>
+                        <div class="fw-bold">{{ difficulty }}</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Mining Reward</small>
+                        <div class="fw-bold">{{ mining_reward }}</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Node ID</small>
+                        <div class="fw-bold">{{ node_id }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line"></i> Network Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="activity-feed" id="activityFeed">
+                    <div class="activity-item">
+                        <i class="fas fa-cube text-primary"></i>
+                        <div class="activity-content">
+                            <strong>Genesis Block</strong>
+                            <small class="text-muted">Network initialized</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshActivity()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Blocks Preview -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history"></i> Recent Activity
+                </h5>
+                <a href="{{ url_for('explorer_page') }}" class="btn btn-sm btn-outline-primary">
+                    View All <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Details</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentActivity">
+                            <tr>
+                                <td>
+                                    <i class="fas fa-cube text-primary"></i> Block
+                                </td>
+                                <td>Genesis Block #0</td>
+                                <td>
+                                    <small class="text-muted">Network Start</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">Confirmed</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh dashboard data
+function refreshDashboard() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('chainLength').textContent = data.chain_length;
+            document.getElementById('pendingTx').textContent = data.pending_count;
+            document.getElementById('peerCount').textContent = data.peer_count;
+            document.getElementById('nodeBalance').textContent = data.balance.toFixed(2);
+            
+            // Update chain status
+            const chainStatus = document.getElementById('chainStatus');
+            chainStatus.className = 'status-indicator ' + (data.is_valid ? 'synced' : 'error');
+        })
+        .catch(error => console.log('Dashboard refresh failed:', error));
+}
+
+// Refresh activity feed
+function refreshActivity() {
+    fetch('/api/chain')
+        .then(response => response.json())
+        .then(data => {
+            const activityFeed = document.getElementById('activityFeed');
+            const recentActivity = document.getElementById('recentActivity');
+            
+            // Clear existing activity
+            activityFeed.innerHTML = '';
+            recentActivity.innerHTML = '';
+            
+            // Add recent blocks to activity feed
+            data.chain.slice(-3).reverse().forEach((block, index) => {
+                const activityItem = document.createElement('div');
+                activityItem.className = 'activity-item';
+                activityItem.innerHTML = `
+                    <i class="fas fa-cube text-primary"></i>
+                    <div class="activity-content">
+                        <strong>Block #${block.index}</strong>
+                        <small class="text-muted">${block.transactions.length} transactions</small>
+                    </div>
+                `;
+                activityFeed.appendChild(activityItem);
+                
+                // Add to recent activity table
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><i class="fas fa-cube text-primary"></i> Block</td>
+                    <td>Block #${block.index} (${block.transactions.length} txs)</td>
+                    <td><small class="text-muted">${new Date(block.timestamp * 1000).toLocaleString()}</small></td>
+                    <td><span class="badge bg-success">Confirmed</span></td>
+                `;
+                recentActivity.appendChild(row);
+            });
+            
+            // Add pending transactions
+            fetch('/api/transactions')
+                .then(response => response.json())
+                .then(txData => {
+                    txData.pending_transactions.forEach(tx => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><i class="fas fa-exchange-alt text-warning"></i> Transaction</td>
+                            <td>${tx.sender} → ${tx.recipient} (${tx.amount})</td>
+                            <td><small class="text-muted">Pending</small></td>
+                            <td><span class="badge bg-warning">Pending</span></td>
+                        `;
+                        recentActivity.appendChild(row);
+                    });
+                });
+        })
+        .catch(error => console.log('Activity refresh failed:', error));
+}
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    refreshDashboard();
+    refreshActivity();
+    
+    // Auto-refresh every 10 seconds
+    setInterval(refreshDashboard, 10000);
+    setInterval(refreshActivity, 15000);
+});
+</script>
+{% endblock %}
