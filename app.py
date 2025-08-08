@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-P2P Blockchain Network - Flask Application
-==========================================
-A complete peer-to-peer blockchain network implementation with Flask web interface.
-"""
-
 import hashlib
 import json
 import time
@@ -171,7 +164,7 @@ class Blockchain:
     
     def get_balance(self, address):
         """Get balance for a specific address"""
-        balance = 0
+        balance = 100
         
         for block in self.chain:
             for transaction in block.transactions:
@@ -617,11 +610,11 @@ if __name__ == '__main__':
     debug = args.debug
     
     print("🔗" * 30)
-    print(f"🚀 P2P Blockchain Network Starting")
-    print(f"📡 Node ID: {node_identifier}")
-    print(f"🌐 Server: http://{host}:{port}/")
-    print(f"📊 API Base: http://{host}:{port}/api/")
-    print(f"🔧 Debug Mode: {'ON' if debug else 'OFF'}")
+    print(f"P2P Blockchain Network Starting")
+    print(f"Node ID: {node_identifier}")
+    print(f"Server: http://{host}:{port}/")
+    print(f"API Base: http://{host}:{port}/api/")
+    print(f"Debug Mode: {'ON' if debug else 'OFF'}")
     print("🔗" * 30)
     
     try:

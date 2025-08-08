@@ -21,5 +21,957 @@
                     <button class="btn btn-primary" onclick="searchBlockchain()">
                         <i class="fas fa-search"></i> Search
                     </button>
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#advancedSearchModal">
+                        <i class="fas fa-cogs"></i> Advanced
+                    </button>
                 </div>
-                <div id="
+                <div id="searchResults" class="mt-3" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chain Overview -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-primary">
+                <i class="fas fa-cubes"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number">{{ chain_length }}</h3>
+                <p class="stat-label">Total Blocks</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-success">
+                <i class="fas fa-exchange-alt"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="totalTransactions">0</h3>
+                <p class="stat-label">Total Transactions</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-warning">
+                <i class="fas fa-coins"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="totalSupply">0</h3>
+                <p class="stat-label">Total Supply</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-info">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="avgBlockTime">~30s</h3>
+                <p class="stat-label">Avg Block Time</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Blockchain Blocks -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cube"></i> Blockchain Blocks
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshBlocks()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-secondary active" onclick="setView('detailed')">
+                            Detailed
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="setView('compact')">
+                            Compact
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="blocksContainer">
+                    {% for block in chain %}
+                    <div class="block-item" data-block-index="{{ block.index }}">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h4 class="block-title">
+                                    {% if block.index == 0 %}
+                                        <i class="fas fa-certificate text-warning"></i> Genesis Block
+                                    {% else %}
+                                        <i class="fas fa-cube text-primary"></i> Block #{{ block.index }}
+                                    {% endif %}
+                                </h4>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i> 
+                                    {{ moment(block.timestamp).fromNow() if moment else (block.timestamp|int|string + ' (timestamp)') }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-success">Confirmed</span>
+                                <br>
+                                <small class="text-muted">{{ block.transactions|length }} transactions</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Block Info Grid -->
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <div class="info-box">
+                                    <h6 class="text-muted mb-1">Nonce</h6>
+                                    <strong>{{ block.nonce }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-box">
+                                    <h6 class="text-muted mb-1">Transactions</h6>
+                                    <strong>{{ block.transactions|length }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-box">
+                                    <h6 class="text-muted mb-1">Size</h6>
+                                    <strong>{{ (block.hash|length * 4) }} bytes</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-box">
+                                    <h6 class="text-muted mb-1">Difficulty</h6>
+                                    <strong>{{ block.hash[:4].count('0') }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Hashes -->
+                        <div class="mb-3">
+                            <h6 class="mb-2">Block Hash:</h6>
+                            <div class="hash-display" onclick="copyToClipboard('{{ block.hash }}')">
+                                {{ block.hash }}
+                            </div>
+                        </div>
+                        
+                        {% if block.previous_hash != "0" %}
+                        <div class="mb-3">
+                            <h6 class="mb-2">Previous Hash:</h6>
+                            <div class="hash-display" onclick="copyToClipboard('{{ block.previous_hash }}')">
+                                {{ block.previous_hash }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Transactions -->
+                        {% if block.transactions %}
+                        <div class="transactions-section">
+                            <h6 class="mb-3">
+                                <i class="fas fa-list"></i> Transactions ({{ block.transactions|length }})
+                                <button class="btn btn-sm btn-outline-secondary ms-2" 
+                                        onclick="toggleTransactions({{ block.index }})">
+                                    <i class="fas fa-eye" id="toggle-icon-{{ block.index }}"></i> Show Details
+                                </button>
+                            </h6>
+                            
+                            <div class="transactions-list" id="transactions-{{ block.index }}" style="display: none;">
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>From</th>
+                                                <th>To</th>
+                                                <th>Amount</th>
+                                                <th>Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for tx in block.transactions %}
+                                            <tr>
+                                                <td>
+                                                    {% if tx.sender %}
+                                                        <i class="fas fa-paper-plane text-primary"></i> Transfer
+                                                    {% else %}
+                                                        <i class="fas fa-gift text-warning"></i> Reward
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="address-display">
+                                                        {{ tx.sender or 'Mining Reward' }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="address-display">{{ tx.recipient }}</span>
+                                                </td>
+                                                <td>
+                                                    <strong class="text-success">{{ "%.2f"|format(tx.amount) }}</strong>
+                                                    <small class="text-muted">coins</small>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted">
+                                                        {{ (tx.timestamp|int|string + ' (ts)') if tx.timestamp else 'N/A' }}
+                                                    </small>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Transaction Summary -->
+                            <div class="transaction-summary mt-2">
+                                {% set total_amount = block.transactions | sum(attribute='amount') %}
+                                <div class="row text-center">
+                                    <div class="col-md-4">
+                                        <small class="text-muted">Total Volume</small>
+                                        <div class="fw-bold">{{ "%.2f"|format(total_amount) }} coins</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted">Transfers</small>
+                                        <div class="fw-bold">{{ (block.transactions | selectattr('sender') | list | length) }}</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted">Rewards</small>
+                                        <div class="fw-bold">{{ (block.transactions | rejectattr('sender') | list | length) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <div>No transactions in this block</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Load More Button -->
+                <div class="text-center mt-4" id="loadMoreContainer">
+                    <button class="btn btn-outline-primary" onclick="loadMoreBlocks()">
+                        <i class="fas fa-chevron-down"></i> Load More Blocks
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Search Modal -->
+<div class="modal fade" id="advancedSearchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Advanced Search</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="advancedSearchForm">
+                    <div class="mb-3">
+                        <label for="searchType" class="form-label">Search Type</label>
+                        <select class="form-control" id="searchType">
+                            <option value="all">All Types</option>
+                            <option value="block">Block Number</option>
+                            <option value="hash">Hash</option>
+                            <option value="address">Address</option>
+                            <option value="amount">Amount Range</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="searchValue" class="form-label">Search Value</label>
+                        <input type="text" class="form-control" id="searchValue" 
+                               placeholder="Enter search criteria">
+                    </div>
+                    
+                    <div class="mb-3" id="amountRange" style="display: none;">
+                        <label class="form-label">Amount Range</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="number" class="form-control" id="minAmount" 
+                                       placeholder="Min amount" step="0.01">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" class="form-control" id="maxAmount" 
+                                       placeholder="Max amount" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="performAdvancedSearch()">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chain Analytics Panel -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line"></i> Chain Analytics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="analytics-stat">
+                            <h4 id="avgTxPerBlock">0</h4>
+                            <small class="text-muted">Avg Transactions/Block</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="analytics-stat">
+                            <h4 id="largestBlock">0</h4>
+                            <small class="text-muted">Largest Block (txs)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="analytics-stat">
+                            <h4 id="totalVolume">0.00</h4>
+                            <small class="text-muted">Total Volume</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="analytics-stat">
+                            <h4 id="uniqueAddresses">0</h4>
+                            <small class="text-muted">Unique Addresses</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentView = 'detailed';
+let loadedBlocks = {{ chain_length }};
+let searchResults = [];
+
+// Toggle transaction details
+function toggleTransactions(blockIndex) {
+    const transactionsList = document.getElementById(`transactions-${blockIndex}`);
+    const toggleButton = event.target.closest('button');
+    
+    if (transactionsList.style.display === 'none' || !transactionsList.style.display) {
+        transactionsList.style.display = 'block';
+        toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Details';
+        toggleButton.classList.remove('btn-outline-secondary');
+        toggleButton.classList.add('btn-outline-warning');
+    } else {
+        transactionsList.style.display = 'none';
+        toggleButton.innerHTML = '<i class="fas fa-eye"></i> Show Details';
+        toggleButton.classList.remove('btn-outline-warning');
+        toggleButton.classList.add('btn-outline-secondary');
+    }
+}
+
+// Set view mode
+function setView(viewType) {
+    currentView = viewType;
+    
+    // Update button states
+    document.querySelectorAll('[onclick*="setView"]').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // Apply view changes
+    const blocks = document.querySelectorAll('.block-item');
+    blocks.forEach(block => {
+        if (viewType === 'compact') {
+            block.classList.add('compact-view');
+            // Auto-hide transaction details in compact view
+            const transactionsList = block.querySelector('.transactions-list');
+            if (transactionsList) {
+                transactionsList.style.display = 'none';
+            }
+            // Update toggle buttons
+            const toggleButtons = block.querySelectorAll('[onclick*="toggleTransactions"]');
+            toggleButtons.forEach(btn => {
+                btn.innerHTML = '<i class="fas fa-eye"></i> Show Details';
+                btn.classList.remove('btn-outline-warning');
+                btn.classList.add('btn-outline-secondary');
+            });
+        } else {
+            block.classList.remove('compact-view');
+        }
+    });
+}
+
+// Basic search blockchain
+function searchBlockchain() {
+    const query = document.getElementById('searchInput').value.trim();
+    const resultsContainer = document.getElementById('searchResults');
+    
+    if (!query) {
+        resultsContainer.style.display = 'none';
+        return;
+    }
+    
+    resultsContainer.style.display = 'block';
+    resultsContainer.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
+    
+    // Perform search with delay to show loading
+    setTimeout(() => {
+        const results = performSearch(query);
+        displaySearchResults(results, query);
+    }, 500);
+}
+
+// Perform search logic
+function performSearch(query) {
+    const results = [];
+    
+    // Search by block number
+    if (!isNaN(query)) {
+        const blockIndex = parseInt(query);
+        const blockElement = document.querySelector(`[data-block-index="${blockIndex}"]`);
+        if (blockElement) {
+            results.push({
+                type: 'block',
+                title: `Block #${blockIndex}`,
+                description: `Found block with index ${blockIndex}`,
+                element: blockElement,
+                data: { blockIndex }
+            });
+        }
+    }
+    
+    // Search by hash or address
+    const searchableElements = document.querySelectorAll('.hash-display, .address-display');
+    searchableElements.forEach(el => {
+        if (el.textContent.toLowerCase().includes(query.toLowerCase())) {
+            const blockElement = el.closest('.block-item');
+            const isHash = el.classList.contains('hash-display');
+            
+            results.push({
+                type: isHash ? 'hash' : 'address',
+                title: `${isHash ? 'Hash' : 'Address'}: ${el.textContent.substring(0, 20)}...`,
+                description: `Found in ${blockElement ? `Block #${blockElement.dataset.blockIndex}` : 'blockchain'}`,
+                element: blockElement,
+                data: { fullText: el.textContent, isHash }
+            });
+        }
+    });
+    
+    // Search transaction amounts
+    const amountQuery = parseFloat(query);
+    if (!isNaN(amountQuery)) {
+        document.querySelectorAll('.text-success').forEach(amountElement => {
+            const amountText = amountElement.textContent;
+            const amount = parseFloat(amountText);
+            if (Math.abs(amount - amountQuery) < 0.01) {
+                const blockElement = amountElement.closest('.block-item');
+                results.push({
+                    type: 'transaction',
+                    title: `Transaction: ${amount.toFixed(2)} coins`,
+                    description: `Found in ${blockElement ? `Block #${blockElement.dataset.blockIndex}` : 'blockchain'}`,
+                    element: blockElement,
+                    data: { amount }
+                });
+            }
+        });
+    }
+    
+    return results;
+}
+
+// Advanced search functionality
+function performAdvancedSearch() {
+    const searchType = document.getElementById('searchType').value;
+    const searchValue = document.getElementById('searchValue').value;
+    const minAmount = document.getElementById('minAmount').value;
+    const maxAmount = document.getElementById('maxAmount').value;
+    
+    // Hide modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('advancedSearchModal'));
+    modal.hide();
+    
+    // For demo purposes, perform basic search
+    document.getElementById('searchInput').value = searchValue;
+    const results = performSearch(searchValue);
+    
+    // Display results
+    const resultsContainer = document.getElementById('searchResults');
+    resultsContainer.style.display = 'block';
+    displaySearchResults(results, `Advanced search: ${searchType}`);
+}
+
+// Display search results
+function displaySearchResults(results, query) {
+    const resultsContainer = document.getElementById('searchResults');
+    
+    if (results.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-search"></i> No results found for "${query}"
+                <button class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#advancedSearchModal">
+                    <i class="fas fa-cogs"></i> Advanced Search
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i> Found ${results.length} result(s) for "${query}"
+            <button class="btn btn-sm btn-outline-primary ms-2" onclick="clearSearch()">
+                <i class="fas fa-times"></i> Clear
+            </button>
+        </div>
+    `;
+    
+    results.forEach((result, index) => {
+        const iconMap = {
+            'block': 'cube',
+            'hash': 'hashtag', 
+            'address': 'user',
+            'transaction': 'exchange-alt'
+        };
+        
+        html += `
+            <div class="search-result-item mb-2 p-3 border rounded" onclick="scrollToResult(${index})" style="cursor: pointer;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-${iconMap[result.type] || 'search'} text-primary me-3"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${result.title}</h6>
+                        <small class="text-muted">${result.description}</small>
+                    </div>
+                    <span class="badge bg-secondary">${result.type}</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    resultsContainer.innerHTML = html;
+    searchResults = results;
+}
+
+// Clear search results
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('searchResults').style.display = 'none';
+    searchResults = [];
+}
+
+// Scroll to search result
+function scrollToResult(index) {
+    const result = searchResults[index];
+    if (result && result.element) {
+        result.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Highlight the result
+        result.element.style.transition = 'box-shadow 0.3s ease';
+        result.element.style.boxShadow = '0 0 20px rgba(102, 126, 234, 0.5)';
+        
+        setTimeout(() => {
+            result.element.style.boxShadow = '';
+        }, 3000);
+        
+        // If it's a transaction result, expand the transactions section
+        if (result.type === 'transaction') {
+            const blockIndex = result.element.dataset.blockIndex;
+            const transactionsList = document.getElementById(`transactions-${blockIndex}`);
+            if (transactionsList && transactionsList.style.display === 'none') {
+                toggleTransactions(blockIndex);
+            }
+        }
+    }
+}
+
+// Refresh blocks
+function refreshBlocks() {
+    fetch('/api/chain')
+        .then(response => response.json())
+        .then(data => {
+            updateChainStats(data);
+            showToast('Blockchain data refreshed successfully!', 'success');
+        })
+        .catch(error => {
+            console.error('Failed to refresh blocks:', error);
+            showToast('Failed to refresh blockchain data', 'danger');
+        });
+}
+
+// Update chain statistics
+function updateChainStats(data) {
+    let totalTransactions = 0;
+    let totalSupply = 0;
+    let blockTimes = [];
+    let totalVolume = 0;
+    let uniqueAddresses = new Set();
+    let largestBlockTxs = 0;
+    
+    data.chain.forEach((block, index) => {
+        totalTransactions += block.transactions.length;
+        largestBlockTxs = Math.max(largestBlockTxs, block.transactions.length);
+        
+        // Calculate block times
+        if (index > 0) {
+            const timeDiff = block.timestamp - data.chain[index - 1].timestamp;
+            blockTimes.push(timeDiff);
+        }
+        
+        // Process transactions
+        block.transactions.forEach(tx => {
+            if (!tx.sender) { // Mining reward
+                totalSupply += tx.amount;
+            } else {
+                totalVolume += tx.amount;
+                uniqueAddresses.add(tx.sender);
+            }
+            uniqueAddresses.add(tx.recipient);
+        });
+    });
+    
+    // Update overview stats
+    document.getElementById('totalTransactions').textContent = totalTransactions;
+    document.getElementById('totalSupply').textContent = totalSupply.toFixed(2);
+    
+    // Calculate average block time
+    if (blockTimes.length > 0) {
+        const avgTime = blockTimes.reduce((a, b) => a + b, 0) / blockTimes.length;
+        document.getElementById('avgBlockTime').textContent = `~${Math.round(avgTime)}s`;
+    }
+    
+    // Update analytics stats
+    if (totalTransactions > 0) {
+        document.getElementById('avgTxPerBlock').textContent = (totalTransactions / data.chain.length).toFixed(1);
+    }
+    document.getElementById('largestBlock').textContent = largestBlockTxs;
+    document.getElementById('totalVolume').textContent = totalVolume.toFixed(2);
+    document.getElementById('uniqueAddresses').textContent = uniqueAddresses.size;
+}
+
+// Load more blocks (simulation)
+function loadMoreBlocks() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    button.disabled = true;
+    
+    // Simulate loading delay
+    setTimeout(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+        showToast('All available blocks are already loaded', 'info');
+    }, 1000);
+}
+
+// Copy to clipboard function
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied to clipboard!', 'success', 2000);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        showToast('Failed to copy to clipboard', 'danger');
+    });
+}
+
+// Show toast notification
+function showToast(message, type = 'info', duration = 4000) {
+    if (window.BlockchainUI && window.BlockchainUI.showToast) {
+        window.BlockchainUI.showToast(message, type, duration);
+    } else {
+        console.log(`Toast: ${message}`);
+    }
+}
+
+// Search type change handler
+document.addEventListener('DOMContentLoaded', function() {
+    const searchTypeSelect = document.getElementById('searchType');
+    const amountRangeDiv = document.getElementById('amountRange');
+    
+    if (searchTypeSelect) {
+        searchTypeSelect.addEventListener('change', function() {
+            if (this.value === 'amount') {
+                amountRangeDiv.style.display = 'block';
+            } else {
+                amountRangeDiv.style.display = 'none';
+            }
+        });
+    }
+    
+    // Initialize page
+    refreshBlocks();
+    
+    // Add search on Enter key
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchBlockchain();
+            }
+        });
+        
+        // Add search on input (debounced)
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (this.value.length > 2) {
+                    searchBlockchain();
+                } else if (this.value.length === 0) {
+                    clearSearch();
+                }
+            }, 300);
+        });
+    }
+    
+    // Make hash elements clickable
+    document.querySelectorAll('.hash-display').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.title = 'Click to copy';
+    });
+    
+    // Auto-refresh every 15 seconds
+    setInterval(refreshBlocks, 15000);
+});
+
+// Add custom CSS for search results and compact view
+const style = document.createElement('style');
+style.textContent = `
+    .search-result-item:hover {
+        background: rgba(102, 126, 234, 0.1);
+        transform: translateX(5px);
+        transition: all 0.3s ease;
+    }
+    
+    .block-item.compact-view {
+        padding: 1rem;
+    }
+    
+    .block-item.compact-view .info-box {
+        display: none;
+    }
+    
+    .block-item.compact-view .hash-display {
+        font-size: 0.8rem;
+        padding: 0.5rem;
+    }
+    
+    .block-item.compact-view .transactions-section {
+        margin-top: 1rem;
+    }
+    
+    .analytics-stat {
+        background: rgba(255, 255, 255, 0.7);
+        padding: 1rem;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .analytics-stat:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .hash-display:hover {
+        background: rgba(102, 126, 234, 0.1);
+        transform: scale(1.02);
+        cursor: pointer;
+    }
+    
+    .address-display:hover {
+        background: rgba(102, 126, 234, 0.15);
+        transform: scale(1.02);
+        cursor: pointer;
+    }
+    
+    .block-item {
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .block-item::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 15px 15px 0 0;
+    }
+    
+    .block-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .transaction-item {
+        background: linear-gradient(135deg, #e6fffa 0%, #f0fff4 100%);
+        border-left: 4px solid #48bb78;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .transaction-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 5px 15px rgba(72, 187, 120, 0.2);
+    }
+    
+    .info-box {
+        text-align: center;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .info-box:hover {
+        background: rgba(255, 255, 255, 0.9);
+        transform: translateY(-2px);
+    }
+    
+    .hash-display {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        background: rgba(0, 0, 0, 0.05);
+        padding: 0.75rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        word-break: break-all;
+        border-left: 3px solid #667eea;
+        margin: 0.5rem 0;
+        transition: all 0.3s ease;
+    }
+    
+    .address-display {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        background: rgba(102, 126, 234, 0.1);
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    
+    .block-title {
+        color: #2d3748;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .transactions-section {
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .transaction-summary {
+        background: rgba(255, 255, 255, 0.8);
+        padding: 1rem;
+        border-radius: 10px;
+        margin-top: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .block-item {
+            padding: 1.5rem;
+        }
+        
+        .stat-card {
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+        }
+        
+        .info-box {
+            padding: 0.75rem;
+        }
+        
+        .hash-display {
+            font-size: 0.75rem;
+            padding: 0.5rem;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}
