@@ -51,9 +51,29 @@
 
 ---
 
-## Quick Start
+## Output Screenshots
 
-### Prerequisites
+![HomePage](https://github.com/lohithgsk/blockchain/blob/main/images/Image%200.png)
+
+<br>
+
+![HomePage+1](https://github.com/lohithgsk/blockchain/blob/main/images/quick.png)
+
+<br>
+
+![Mining](https://github.com/lohithgsk/blockchain/blob/main/images/Image%202.png)
+
+<br>
+
+![Network](https://github.com/lohithgsk/blockchain/blob/main/images/Image%203.png)
+
+<br>
+
+![Network](https://github.com/lohithgsk/blockchain/blob/main/images/Image%204.png)
+
+<br>
+
+## Quick Start
 
 ### Installation
 
@@ -337,3 +357,4 @@ class Blockchain:
 
 
 ---
+
