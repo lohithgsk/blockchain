@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-P2P Blockchain Network - Flask Application
-==========================================
-A complete peer-to-peer blockchain network implementation with Flask web interface.
-"""
-
 import hashlib
 import json
 import time
